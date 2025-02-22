@@ -8,9 +8,12 @@ export class Start extends Phaser.Scene {
 
         // Load assets
         this.load.spritesheet('ship', 'assets/spaceship.png', { frameWidth: 176, frameHeight: 96 });
-        this.load.spritesheet('enemy', 'assets/enemy.png', { frameWidth: 48, frameHeight: 48 });
+        this.load.spritesheet('enemy', 'assets/enemy.png', { frameWidth: 106, frameHeight: 77 });
         this.load.spritesheet('explosion', 'assets/explosion.png', { frameWidth: 112, frameHeight: 128 });
+        this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 48, frameHeight: 32 });
         this.load.audio('explosionSound', 'assets/explosionSound.wav');
+        this.load.audio('music1', 'assets/music.wav');
+        this.load.audio('laserSound', 'assets/laserShot.flac');
     }
 
     create() {
@@ -55,6 +58,10 @@ export class Start extends Phaser.Scene {
             loop: -1
         });
 
+        // Music
+        this.music1 = this.sound.add('music1', { volume: 0.5 });
+        this.playMusicSequence();
+
         // Add keyboard input
         this.cursors = this.input.keyboard.createCursorKeys();
 
@@ -74,6 +81,28 @@ export class Start extends Phaser.Scene {
 
         // Flag to disable movement upon collision
         this.isGameOver = false;
+
+        // Hitbox fixes
+        this.ship.body.setCircle(40, 48, 12);
+
+        // Laser group
+        this.lasers = this.physics.add.group();
+
+        // Create laser animation with auto-hide
+        this.anims.create({
+            key: 'laserFly',
+            frames: this.anims.generateFrameNumbers('laser', { start: 0, end: 3 }),
+            frameRate: 30,
+            repeat: -1,
+            hideOnComplete: false
+        });
+
+        // Shot cooldown
+        this.lastShotTime = 0;
+        this.shootCooldown = 1000;
+
+        // Debug
+        this.debugActive = false;
     }
 
     update() {
@@ -103,6 +132,20 @@ export class Start extends Phaser.Scene {
                 this.ship.y += 5;
             }
         }
+
+        // Shooting
+        if (this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE).isDown ||
+            this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J).isDown) {
+            this.shootLaser();
+        }
+
+        // Debug
+        if (this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ZERO).isDown) {
+            if (!this.debugActive) {
+                this.debugActive = true;
+                this.physics.world.createDebugGraphic();
+            }
+        }
     }
 
     spawnEnemy() {
@@ -125,10 +168,14 @@ export class Start extends Phaser.Scene {
             ease: 'Linear',
             onComplete: () => enemy.destroy() // Remove enemy when it moves off-screen
         });
+
+        // Laser collision
+        this.physics.add.collider(this.lasers, this.enemies, this.laserHitsEnemy, null, this);
     }
 
     handleCollision(ship, enemy) {
         enemy.destroy(); // Remove enemy upon collision
+        ship.visible = false; // Remove player ship
 
         // Kill the ship's tween so it stops moving
         this.tweens.killTweensOf(this.ship);
@@ -137,24 +184,70 @@ export class Start extends Phaser.Scene {
         this.ship.body.setVelocity(0, 0);
         
         // Create explosion without stopping its animation
-        this.createExplosion(ship.x, ship.y);
+        this.createExplosion(ship.x, ship.y, true);
     }
 
-    createExplosion(x, y) {
+    createExplosion(x, y, playerShip) {
         if (!this.isGameOver) {
-            this.isGameOver = true;
             let explosion = this.add.sprite(x, y, 'explosion');
             explosion.play('explode');
-            this.sound.play('explosionSound'); // Play explosion sound
+            this.sound.play('explosionSound', {volume: 0.4}); // Play explosion sound
 
-            explosion.on('animationcomplete', () => {
-                explosion.destroy(); // Remove explosion after playing
-                this.resetGame();
-            });
+            if (playerShip) {
+                this.isGameOver = true;
+                explosion.on('animationcomplete', () => {
+                    explosion.destroy(); // Remove explosion after playing
+                    this.resetGame();
+                });
+            }
         }
     }
 
     resetGame() {
         location.reload();
+    }
+
+    playMusicSequence() {
+        this.music1.play()
+        
+        this.music1.once('complete', () => {
+            this.music1.play();
+        });
+    }
+
+    shootLaser() {
+        if (this.isGameOver) return;
+
+        let currentTime = this.time.now; // Get current time
+
+        if (currentTime - this.lastShotTime < this.shootCooldown) {
+            return; // Stop if cooldown hasn't passed
+        }
+
+        this.lastShotTime = currentTime; // Update last shot time
+
+        // Create a laser at the ship's position
+        let laser = this.lasers.create(this.ship.x + 70, this.ship.y, 'laser');
+        laser.setFlipX(true);
+        laser.play('laserFly');
+
+        // Set laser speed and disable gravity
+        laser.setVelocityX(400);
+        laser.setGravityY(0);
+
+        // Play Sound
+        this.sound.play('laserSound', {volume: 0.75});
+
+        // Destroy laser when it moves off-screen
+        this.time.delayedCall(3000, () => {
+            if (laser) laser.destroy();
+            this.laserCooldown = false;
+        });
+    }
+
+    laserHitsEnemy(laser, enemy) {
+        laser.destroy(); // Remove the laser
+        enemy.destroy(); // Remove the enemy
+        this.createExplosion(enemy.x, enemy.y); // Play explosion
     }
 }
