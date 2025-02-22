@@ -1,0 +1,8 @@
+Where did these assets come from? Here's my sources:
+
+explosionSound.wav - https://freesound.org/people/jobro/sounds/35460/?
+Sound license:
+https://creativecommons.org/licenses/by/3.0/
+
+Sprites:
+https://ansimuz.itch.io - free sprites for games

@@ -14,5 +14,11 @@ const config = {
         mode: Phaser.Scale.CENTER_BOTH,
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
+    physics: {
+        default: 'arcade',
+        arcade: {
+            debug: false
+        }
+    },
 }
 new Phaser.Game(config);
