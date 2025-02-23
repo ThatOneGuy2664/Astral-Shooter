@@ -1,5 +1,6 @@
 import { Start } from './scenes/Start.js';
 import { PauseMenu } from './scenes/PauseMenu.js';
+import { GameScene } from './scenes/GameScene.js';
 
 const config = {
     type: Phaser.AUTO,
@@ -10,6 +11,7 @@ const config = {
     pixelArt: false,
     scene: [
         Start,
+        GameScene,
         PauseMenu
     ],
     scale: {
@@ -23,4 +25,5 @@ const config = {
         }
     },
 }
+
 new Phaser.Game(config);

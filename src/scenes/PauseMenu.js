@@ -14,13 +14,7 @@ export class PauseMenu extends Phaser.Scene {
 
         resumeText.on('pointerdown', () => {
             // Resume the main game and stop the pause menu
-            this.scene.resume('Start');
-            this.scene.stop();
-        });
-
-        resumeText.on('pointerdown', () => {
-            // Resume the main game and stop the pause menu
-            this.scene.resume('Start');
+            this.scene.resume('GameScene');
             this.scene.stop();
         });
 
@@ -34,7 +28,7 @@ export class PauseMenu extends Phaser.Scene {
             window.open('https://github.com/ThatOneGuy2664/Astral-Shooter', '_blank');
         });
 
-        const itchText = this.add.text(640, 400, 'Itch.Io Page', {
+        const itchText = this.add.text(640, 400, 'Itch.io Page', {
             fontSize: '32px',
             fill: '#fff'
         }).setOrigin(0.5).setInteractive();
@@ -46,7 +40,7 @@ export class PauseMenu extends Phaser.Scene {
 
         // Also allow closing the menu with the ESC key
         this.input.keyboard.on('keydown-ESC', () => {
-            this.scene.resume('Start');
+            this.scene.resume('GameScene');
             this.scene.stop();
         });
     }
