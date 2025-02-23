@@ -12,7 +12,6 @@ export class Start extends Phaser.Scene {
         this.load.spritesheet('explosion', 'assets/explosion.png', { frameWidth: 112, frameHeight: 128 });
         this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 48, frameHeight: 32 });
         this.load.spritesheet('enemy-fast', 'assets/enemy-fast.png', { frameWidth: 125, frameHeight: 76 });
-        this.load.spritesheet('enemy-fast-thrust', 'assets/enemy-fast-thrust.png', { frameWidth: 32, frameHeight: 26 });
         this.load.audio('explosionSound', 'assets/explosionSound.wav');
         this.load.audio('music1', 'assets/music.wav');
         this.load.audio('laserSound', 'assets/laserShot.flac');
@@ -118,6 +117,13 @@ export class Start extends Phaser.Scene {
         // Local highscore
         this.highScore = localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
         this.highScoreText = this.add.text(20, 50, `Local High Score: ${this.highScore}`, { fontSize: '24px', fill: '#fff' });
+
+        this.input.keyboard.on('keydown-ESC', () => {
+            if (!this.scene.isPaused('Start')) {
+                this.scene.launch('PauseMenu');
+                this.scene.pause();
+            }
+        })
 
         // Debug
         this.debugActive = false;
