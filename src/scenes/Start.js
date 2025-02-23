@@ -11,6 +11,8 @@ export class Start extends Phaser.Scene {
         this.load.spritesheet('enemy', 'assets/enemy.png', { frameWidth: 106, frameHeight: 77 });
         this.load.spritesheet('explosion', 'assets/explosion.png', { frameWidth: 112, frameHeight: 128 });
         this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 48, frameHeight: 32 });
+        this.load.spritesheet('enemy-fast', 'assets/enemy-fast.png', { frameWidth: 125, frameHeight: 76 });
+        this.load.spritesheet('enemy-fast-thrust', 'assets/enemy-fast-thrust.png', { frameWidth: 32, frameHeight: 26 });
         this.load.audio('explosionSound', 'assets/explosionSound.wav');
         this.load.audio('music1', 'assets/music.wav');
         this.load.audio('laserSound', 'assets/laserShot.flac');
@@ -35,6 +37,14 @@ export class Start extends Phaser.Scene {
         this.anims.create({
             key: 'enemyFly',
             frames: this.anims.generateFrameNumbers('enemy', { start: 0, end: 7 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        // Create enemy animation
+        this.anims.create({
+            key: 'enemyFly-Fast',
+            frames: this.anims.generateFrameNumbers('enemy-fast', { start: 0, end: 3 }),
             frameRate: 10,
             repeat: -1
         });
@@ -101,6 +111,14 @@ export class Start extends Phaser.Scene {
         this.lastShotTime = 0;
         this.shootCooldown = 1000;
 
+        // Score
+        this.score = 0;
+        this.scoreText = this.add.text(20, 20, 'Score: 0', { fontSize: '24px', fill: '#fff' });
+
+        // Local highscore
+        this.highScore = localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
+        this.highScoreText = this.add.text(20, 50, `Local High Score: ${this.highScore}`, { fontSize: '24px', fill: '#fff' });
+
         // Debug
         this.debugActive = false;
     }
@@ -153,28 +171,43 @@ export class Start extends Phaser.Scene {
         const x = Phaser.Math.Between(1200, 1280); // Spawn from the right side of the screen
         const y = Phaser.Math.Between(50, 670);
 
-        // Create enemy using the physics-enabled group (automatically gets a physics body)
-        const enemy = this.enemies.create(x, y, 'enemy');
-        
-        // Play enemy animation and flip horizontally so it faces the ship
-        enemy.play('enemyFly');
-        enemy.setFlipX(true);
+        let enemyType = Phaser.Math.Between(1, 3); // 1-2: normal enemy, 3: fast enemy
 
-        // Move enemy towards the left of the screen
-        this.tweens.add({
-            targets: enemy,
-            x: -50,
-            duration: 4000,
-            ease: 'Linear',
-            onComplete: () => enemy.destroy() // Remove enemy when it moves off-screen
-        });
+        let enemy;
+        if (enemyType === 3) {
+            // Fast enemy
+            enemy = this.enemies.create(x, y, 'enemy-fast');
+            enemy.play('enemyFly-Fast');
+            enemy.setFlipX(true);
+            enemy.type = 'enemy-fast';
+            this.tweens.add({
+                targets: enemy,
+                x: -50,
+                duration: 2500,
+                ease: 'Linear',
+                onComplete: () => enemy.destroy()
+            });
+        } else {
+            // Normal enemy
+            enemy = this.enemies.create(x, y, 'enemy');
+            enemy.play('enemyFly');
+            enemy.setFlipX(true);
+            enemy.type = 'enemy';
+            this.tweens.add({
+                targets: enemy,
+                x: -50,
+                duration: 4000,
+                ease: 'Linear',
+                onComplete: () => enemy.destroy()
+            });
+        }
 
-        // Laser collision
+        // Add laser collision
         this.physics.add.collider(this.lasers, this.enemies, this.laserHitsEnemy, null, this);
     }
 
     handleCollision(ship, enemy) {
-        enemy.destroy(); // Remove enemy upon collision
+        this.createExplosion(this.ship.x, this.ship.y, null, enemy); // Explode enemy upon collision
         ship.visible = false; // Remove player ship
 
         // Kill the ship's tween so it stops moving
@@ -187,11 +220,17 @@ export class Start extends Phaser.Scene {
         this.createExplosion(ship.x, ship.y, true);
     }
 
-    createExplosion(x, y, playerShip) {
+    createExplosion(x, y, playerShip, otherTarget) {
         if (!this.isGameOver) {
             let explosion = this.add.sprite(x, y, 'explosion');
             explosion.play('explode');
             this.sound.play('explosionSound', {volume: 0.4}); // Play explosion sound
+
+            if (otherTarget) {
+                otherTarget.destroy();
+                let explosion2 = this.add.sprite(otherTarget.x, otherTarget.y, 'explosion');
+                explosion2.play('explode');
+            }
 
             if (playerShip) {
                 this.isGameOver = true;
@@ -245,9 +284,28 @@ export class Start extends Phaser.Scene {
         });
     }
 
-    laserHitsEnemy(laser, enemy) {
+    laserHitsEnemy(laser, enemy, enemyType) {
         laser.destroy(); // Remove the laser
         enemy.destroy(); // Remove the enemy
         this.createExplosion(enemy.x, enemy.y); // Play explosion
+        
+        if (enemy.type == 'enemy') { // Add points based on enemy type
+            this.updateScore(5);
+        } else if (enemy.type == 'enemy-fast') {
+            this.updateScore(15);
+        }
+    }
+
+    updateScore(amount) {
+        this.score += amount;
+        this.scoreText.setText('Score: ' + this.score); // Update display
+
+        if (this.score > this.highScore) {
+            this.highScore = this.score;
+            this.highScoreText.setText(`Local High Score: ${this.highScore}`);
+
+            // Save new high score in localStorage
+            localStorage.setItem('highScore', this.highScore);
+        }
     }
 }
