@@ -44,16 +44,6 @@ export class PauseMenu extends Phaser.Scene {
             window.open('https://theboom2010.itch.io/astral-shooter', '_blank');
         });
 
-        const quitText = this.add.text(640, 460, 'Quit', {
-            fontSize: '32px',
-            fill: '#fff'
-        }).setOrigin(0.5).setInteractive();
-
-        quitText.on('pointerdown', () => {
-            // Close tab
-            window.close();
-        });
-
         // Also allow closing the menu with the ESC key
         this.input.keyboard.on('keydown-ESC', () => {
             this.scene.resume('Start');
