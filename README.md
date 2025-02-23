@@ -4,4 +4,4 @@ Is a basic game made using [Phaser](https://phaser.io/), which is under the MIT 
 *You can play it here: https://thatoneguy2664.github.io/Astral-Shooter/*
 
 # Keybinds
-WASD/Arrow Keys to move, Spacebar/J Key to shoot.
+WASD/Arrow Keys to move, Spacebar/J Key to shoot. Press Escape to pause.
