@@ -11,7 +11,11 @@ export class GameScene extends Phaser.Scene {
         this.load.spritesheet('enemy', 'assets/enemy.png', { frameWidth: 106, frameHeight: 77 });
         this.load.spritesheet('explosion', 'assets/explosion.png', { frameWidth: 112, frameHeight: 128 });
         this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 48, frameHeight: 32 });
+        this.load.spritesheet('laserImpact', 'assets/laserImpact.png', { frameWidth: 31, frameHeight: 32 });
         this.load.spritesheet('enemy-fast', 'assets/enemy-fast.png', { frameWidth: 125, frameHeight: 76 });
+        this.load.spritesheet('enemyBullet', 'assets/enemyBullet.png', { frameWidth: 16, frameHeight: 16 });
+        this.load.spritesheet('power-up-bullet', 'assets/power-up-bullet.png', { frameWidth: 16, frameHeight: 16, endFrame: 1 });
+        this.load.spritesheet('power-up-shield', 'assets/power-up-shield.png', { frameWidth: 16, frameHeight: 16, endFrame: 1 });
         this.load.audio('explosionSound', 'assets/explosionSound.wav');
         this.load.audio('music1', 'assets/music.wav');
         this.load.audio('laserSound', 'assets/laserShot.flac');
@@ -97,6 +101,10 @@ export class GameScene extends Phaser.Scene {
         // Laser group
         this.lasers = this.physics.add.group();
 
+        // Enemy laser group
+        this.enemyBullets = this.physics.add.group();
+        this.physics.add.collider(this.ship, this.enemyBullets, this.handleEnemyBulletCollision, null, this);
+
         // Create laser animation with auto-hide
         this.anims.create({
             key: 'laserFly',
@@ -104,6 +112,15 @@ export class GameScene extends Phaser.Scene {
             frameRate: 30,
             repeat: -1,
             hideOnComplete: false
+        });
+
+        // Create laser impact animation with auto-hide
+        this.anims.create({
+            key: 'laserImpact',
+            frames: this.anims.generateFrameNumbers('laserImpact', { start: 0, end: 2 }),
+            frameRate: 15,
+            repeat: 0,
+            hideOnComplete: true
         });
 
         // Shot cooldown
@@ -126,12 +143,57 @@ export class GameScene extends Phaser.Scene {
             }
         })
 
-        this.isTouchInput = window.isTouchInput || false;
+        this.isTouchInput = window.isTouchInput;
 
         // Add buttons for touch input
         if (this.isTouchInput) {
             this.createTouchControls();
         }
+
+        // Create enemy bullets
+        this.anims.create({
+            key: 'enemyBulletAnim',
+            frames: this.anims.generateFrameNumbers('enemyBullet', { start: 0, end: 1 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.time.addEvent({
+            delay: 7000,
+            callback: this.spawnEnemyBullet,
+            callbackScope: this,
+            loop: true
+        });
+
+        // Power-up anims
+        this.anims.create({
+            key: 'powerupBulletAnim',
+            frames: this.anims.generateFrameNumbers('power-up-bullet', { start: 0, end: 1 }),
+            frameRate: 5,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'powerupShieldAnim',
+            frames: this.anims.generateFrameNumbers('power-up-shield', { start: 0, end: 1 }),
+            frameRate: 5,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'shipShieldAnim',
+            frames: this.anims.generateFrameNumbers('power-up-shield', { start: 0, end: 1 }),
+            frameRate: 5,
+            repeat: -1
+        });
+
+        // Create a group for power-ups
+        this.powerUps = this.physics.add.group();
+        this.physics.add.overlap(this.ship, this.powerUps, this.collectPowerUp, null, this);
+
+        // Power up bools
+        this.doubleBulletActive = false;
+        this.shieldActive = false;  
 
         // Debug
         this.debugActive = false;
@@ -145,21 +207,30 @@ export class GameScene extends Phaser.Scene {
         this.background.tilePositionX += 1;
 
         // Ship movement with arrow keys or WASD, with screen boundary limits
-        if (this.cursors.left.isDown || this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A).isDown) {
+        if (this.cursors.left.isDown ||
+            this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A).isDown ||
+            (this.leftButton && this.leftButton.pressed)) {
             if (this.ship.x > 88) {
                 this.ship.x -= 5;
             }
-        } else if (this.cursors.right.isDown || this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D).isDown) {
+        }
+        if (this.cursors.right.isDown ||
+            this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D).isDown ||
+            (this.rightButton && this.rightButton.pressed)) {
             if (this.ship.x < 1192) {
                 this.ship.x += 5;
             }
         }
-
-        if (this.cursors.up.isDown || this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W).isDown) {
+        if (this.cursors.up.isDown ||
+            this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W).isDown ||
+            (this.upButton && this.upButton.pressed)) {
             if (this.ship.y > 48) {
                 this.ship.y -= 5;
             }
-        } else if (this.cursors.down.isDown || this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S).isDown) {
+        }
+        if (this.cursors.down.isDown ||
+            this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S).isDown ||
+            (this.downButton && this.downButton.pressed)) {
             if (this.ship.y < 672) {
                 this.ship.y += 5;
             }
@@ -167,8 +238,15 @@ export class GameScene extends Phaser.Scene {
 
         // Shooting
         if (this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE).isDown ||
-            this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J).isDown) {
+            this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J).isDown ||
+            (this.shootButton && this.shootButton.pressed)) {
             this.shootLaser();
+        }
+
+        // Shield sprite update pos
+        if (this.shieldActive) {
+            this.shieldGraphic.setPosition(this.ship.x, this.ship.y);
+            this.ship.setVelocity(0, 0); // Bullet collisions cause knockback
         }
 
         // Debug
@@ -221,6 +299,12 @@ export class GameScene extends Phaser.Scene {
     }
 
     handleCollision(ship, enemy) {
+        if (this.shieldActive) {
+            enemy.destroy();
+            this.createExplosion(enemy.x, enemy.y);
+            return;
+        }
+
         this.createExplosion(this.ship.x, this.ship.y, null, enemy); // Explode enemy upon collision
         ship.visible = false; // Remove player ship
 
@@ -230,8 +314,21 @@ export class GameScene extends Phaser.Scene {
         // Stop any physics-based movement
         this.ship.body.setVelocity(0, 0);
         
-        // Create explosion without stopping its animation
+        // Create explosion
         this.createExplosion(ship.x, ship.y, true);
+    }
+
+    handleEnemyBulletCollision(ship, bullet) {
+        if (this.shieldActive) {
+            bullet.destroy();
+            return;
+        }
+
+        bullet.destroy(); // Remove the bullet
+        this.createExplosion(ship.x, ship.y, true);
+        ship.visible = false;
+        this.tweens.killTweensOf(this.ship);
+        this.ship.body.setVelocity(0, 0);
     }
 
     createExplosion(x, y, playerShip, otherTarget) {
@@ -279,26 +376,56 @@ export class GameScene extends Phaser.Scene {
 
         this.lastShotTime = currentTime; // Update last shot time
 
-        // Create a laser at the ship's position
-        let laser = this.lasers.create(this.ship.x + 70, this.ship.y, 'laser');
-        laser.setFlipX(true);
-        laser.play('laserFly');
-
-        // Set laser speed and disable gravity
-        laser.setVelocityX(400);
-        laser.setGravityY(0);
-
-        // Play Sound
-        this.sound.play('laserSound', {volume: 0.75});
-
-        // Destroy laser when it moves off-screen
-        this.time.delayedCall(3000, () => {
-            if (laser) laser.destroy();
-            this.laserCooldown = false;
-        });
+        const speed = 400;
+    
+        if (this.doubleBulletActive) {
+            const angleUp = Phaser.Math.DegToRad(-5);
+            const angleDown = Phaser.Math.DegToRad(5);
+            
+            // Fire the upward bullet
+            let laser1 = this.lasers.create(this.ship.x + 70, this.ship.y - 10, 'laser');
+            laser1.setFlipX(true);
+            laser1.play('laserFly');
+            laser1.setVelocity(
+                speed * Math.cos(angleUp), 
+                speed * Math.sin(angleUp)
+            );
+            laser1.setGravityY(0);
+            
+            // Fire the downward bullet
+            let laser2 = this.lasers.create(this.ship.x + 70, this.ship.y + 10, 'laser');
+            laser2.setFlipX(true);
+            laser2.play('laserFly');
+            laser2.setVelocity(
+                speed * Math.cos(angleDown), 
+                speed * Math.sin(angleDown)
+            );
+            laser2.setGravityY(0);
+            
+            this.sound.play('laserSound', { volume: 0.75 });
+            
+            // Destroy lasers after 3 seconds
+            this.time.delayedCall(3000, () => {
+                if (laser1) laser1.destroy();
+                if (laser2) laser2.destroy();
+            });
+        } else {
+            // Normal single laser
+            let laser = this.lasers.create(this.ship.x + 70, this.ship.y, 'laser');
+            laser.setFlipX(true);
+            laser.play('laserFly');
+            laser.setVelocityX(speed);
+            laser.setGravityY(0);
+            this.sound.play('laserSound', { volume: 0.75 });
+            this.time.delayedCall(3000, () => {
+                if (laser) laser.destroy();
+            });
+        }
     }
 
-    laserHitsEnemy(laser, enemy, enemyType) {
+    laserHitsEnemy(laser, enemy) {
+        let laserImpact = this.add.sprite(laser.x, laser.y, 'laserImpact');
+        laserImpact.play('laserImpact');
         laser.destroy(); // Remove the laser
         enemy.destroy(); // Remove the enemy
         this.createExplosion(enemy.x, enemy.y); // Play explosion
@@ -308,6 +435,21 @@ export class GameScene extends Phaser.Scene {
         } else if (enemy.type == 'enemy-fast') {
             this.updateScore(15);
         }
+
+        // 1 in 100 chance to drop a power-up
+        if (Phaser.Math.Between(1, 100) === 1) {
+            // Randomly select one of the two types (50/50 chance)
+            let powerType = Phaser.Math.Between(0, 1) === 0 ? 'power-up-bullet' : 'power-up-shield';
+            let powerUp = this.powerUps.create(enemy.x, enemy.y, powerType);
+            powerUp.body.allowGravity = false;
+            // Play its animation
+            powerUp.play(powerType === 'power-up-bullet' ? 'powerupBulletAnim' : 'powerupShieldAnim');
+            powerUp.setVelocityY(50);
+        }
+
+        laserImpact.on('animationcomplete', () => {
+            laserImpact.destroy(); // Remove after playing
+        });
     }
 
     updateScore(amount) {
@@ -324,27 +466,24 @@ export class GameScene extends Phaser.Scene {
     }
 
     createTouchControls() {
-        const btnSize = 80; // Button size
-        const spacing = 20; // Space between buttons
-
         // Left button
-        this.leftButton = this.add.image(100, 600, 'button').setInteractive().setScale(1.2);
+        this.leftButton = this.add.image(100, 550, 'button').setInteractive().setScale(1.6);
         this.leftButton.pressed = false;
 
         // Right button
-        this.rightButton = this.add.image(250, 600, 'button').setInteractive().setScale(1.2);
+        this.rightButton = this.add.image(250, 550, 'button').setInteractive().setScale(1.6);
         this.rightButton.pressed = false;
 
         // Up button
-        this.upButton = this.add.image(175, 520, 'button').setInteractive().setScale(1.2);
+        this.upButton = this.add.image(175, 470, 'button').setInteractive().setScale(1.6);
         this.upButton.pressed = false;
 
         // Down button
-        this.downButton = this.add.image(175, 680, 'button').setInteractive().setScale(1.2);
+        this.downButton = this.add.image(175, 630, 'button').setInteractive().setScale(1.6);
         this.downButton.pressed = false;
 
         // Shoot button
-        this.shootButton = this.add.image(1100, 600, 'button').setInteractive().setScale(1.5);
+        this.shootButton = this.add.image(1100, 550, 'button').setInteractive().setScale(1.5);
         this.shootButton.pressed = false;
 
         // Button press events
@@ -365,5 +504,84 @@ export class GameScene extends Phaser.Scene {
         button.on('pointerout', () => {
             button.pressed = false;
         });
+    }
+
+    spawnEnemyBullet() {
+        // Ensure there's at least one enemy
+        if (this.enemies.getChildren().length === 0) return;
+
+        // Pick a random enemy from the enemy group
+        const enemiesArray = this.enemies.getChildren();
+        const randomEnemy = Phaser.Utils.Array.GetRandom(enemiesArray);
+
+        // Create the enemy bullet at the enemy's position
+        let bullet = this.enemyBullets.create(randomEnemy.x, randomEnemy.y, 'enemyBullet');
+        bullet.body.allowGravity = false;
+        bullet.setCollideWorldBounds(false);
+
+        // Calculate direction vector from bullet to the player's ship
+        const direction = new Phaser.Math.Vector2(this.ship.x - bullet.x, this.ship.y - bullet.y).normalize();
+        const bulletSpeed = 300;
+
+        // Set the bullet's velocity so it moves toward the ship
+        bullet.body.setVelocity(direction.x * bulletSpeed, direction.y * bulletSpeed);
+
+        // Play the bullet animation
+        bullet.play('enemyBulletAnim');
+    }
+
+    collectPowerUp(ship, powerUp) {
+        // Remove the power-up sprite
+        powerUp.destroy();
+        
+        // Check the type using its texture key
+        if (powerUp.texture.key === 'power-up-bullet') {
+            // Activate double bullet mode for 15 seconds
+            this.doubleBulletActive = true;
+
+            this.time.delayedCall(15000, () => {
+                this.doubleBulletActive = false;
+            });
+        } else if (powerUp.texture.key === 'power-up-shield') {
+            // Activate shield for 10 seconds
+            this.shieldActive = true;
+
+            if (!this.shieldGraphic) {
+                this.shieldGraphic = this.add.graphics();
+            }
+            
+            this.shieldGraphic.alpha = 1;
+            
+            // Draw the shield hitbox as a cyan oval
+            this.shieldGraphic.clear();
+            this.shieldGraphic.lineStyle(4, 0x00ffff, 1);
+            let shieldWidth = this.ship.width + 20;
+            let shieldHeight = this.ship.height + 20;
+            this.shieldGraphic.strokeEllipse(0, 0, shieldWidth, shieldHeight);
+            // Position the graphic at the ship's center
+            this.shieldGraphic.setPosition(this.ship.x, this.ship.y);
+            
+            this.time.delayedCall(10000, () => {
+            this.shieldBlinkTimer = this.time.addEvent({
+                delay: 100,
+                loop: true,
+                callback: () => {
+                    this.shieldGraphic.visible = !this.shieldGraphic.visible;
+                }
+            });
+        });
+        
+        this.time.delayedCall(15000, () => {
+            this.shieldActive = false;
+            if (this.shieldBlinkTimer) {
+                this.shieldBlinkTimer.remove();
+                this.shieldBlinkTimer = null;
+            }
+            if (this.shieldGraphic) {
+                this.shieldGraphic.destroy();
+                this.shieldGraphic = null;
+            }
+        });
+        }
     }
 }

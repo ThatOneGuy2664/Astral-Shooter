@@ -14,7 +14,7 @@ export class Start extends Phaser.Scene {
         }).setOrigin(0.5);
 
         this.input.on('pointerdown', (pointer) => {
-            window.isTouchInput = pointer.pointerType === 'touch';
+            window.isTouchInput = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
             this.input.off('pointerdown');
             this.scene.launch('GameScene');
         });
