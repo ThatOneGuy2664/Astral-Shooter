@@ -19,6 +19,7 @@ export class GameScene extends Phaser.Scene {
         this.load.audio('explosionSound', 'assets/explosionSound.wav');
         this.load.audio('music1', 'assets/music.wav');
         this.load.audio('laserSound', 'assets/laserShot.flac');
+        this.load.audio('powerUpSound', 'assets/powerUpCollected.wav');
     }
 
     create() {
@@ -180,20 +181,13 @@ export class GameScene extends Phaser.Scene {
             repeat: -1
         });
 
-        this.anims.create({
-            key: 'shipShieldAnim',
-            frames: this.anims.generateFrameNumbers('power-up-shield', { start: 0, end: 1 }),
-            frameRate: 5,
-            repeat: -1
-        });
-
         // Create a group for power-ups
         this.powerUps = this.physics.add.group();
         this.physics.add.overlap(this.ship, this.powerUps, this.collectPowerUp, null, this);
 
         // Power up bools
         this.doubleBulletActive = false;
-        this.shieldActive = false;  
+        this.shieldActive = false;
 
         // Debug
         this.debugActive = false;
@@ -302,6 +296,11 @@ export class GameScene extends Phaser.Scene {
         if (this.shieldActive) {
             enemy.destroy();
             this.createExplosion(enemy.x, enemy.y);
+            if (enemy.type == 'enemy') { // Add points based on enemy type
+                this.updateScore(5);
+            } else if (enemy.type == 'enemy-fast') {
+                this.updateScore(15);
+            }
             return;
         }
 
@@ -531,20 +530,46 @@ export class GameScene extends Phaser.Scene {
     }
 
     collectPowerUp(ship, powerUp) {
-        // Remove the power-up sprite
+        this.sound.play('powerUpSound');
         powerUp.destroy();
         
         // Check the type using its texture key
         if (powerUp.texture.key === 'power-up-bullet') {
             // Activate double bullet mode for 15 seconds
+            if (this.doubleBulletTimer) {
+                this.doubleBulletTimer.remove();
+                this.doubleBulletTimer = null;
+            }
+
             this.doubleBulletActive = true;
 
-            this.time.delayedCall(15000, () => {
+            this.doubleBulletTimer = this.time.delayedCall(15000, () => {
                 this.doubleBulletActive = false;
+                powerUp.destroy();
             });
         } else if (powerUp.texture.key === 'power-up-shield') {
-            // Activate shield for 10 seconds
+            powerUp.destroy();
+            // Activate shield for 15 seconds
             this.shieldActive = true;
+
+            if (this.shieldActive) {
+                if (this.shieldBlinkTimer) {
+                    this.shieldBlinkTimer.remove();
+                    this.shieldBlinkTimer = null;
+                }
+                if (this.shieldGraphic) {
+                    this.shieldGraphic.destroy();
+                    this.shieldGraphic = null;
+                }
+                if (this.shieldExpireTimer) {
+                    this.shieldExpireTimer.remove();
+                    this.shieldExpireTimer = null;
+                }
+                if (this.shieldBlinkTimer) {
+                    this.shieldBlinkTimer.remove();
+                    this.shieldBlinkTimer = null;
+                }
+            }
 
             if (!this.shieldGraphic) {
                 this.shieldGraphic = this.add.graphics();
@@ -561,27 +586,28 @@ export class GameScene extends Phaser.Scene {
             // Position the graphic at the ship's center
             this.shieldGraphic.setPosition(this.ship.x, this.ship.y);
             
-            this.time.delayedCall(10000, () => {
-            this.shieldBlinkTimer = this.time.addEvent({
-                delay: 100,
-                loop: true,
-                callback: () => {
-                    this.shieldGraphic.visible = !this.shieldGraphic.visible;
-                }
+            this.shieldBlinkTimer = this.time.delayedCall(10000, () => {
+                this.shieldBlinkTimer = this.time.addEvent({
+                    delay: 100,
+                    loop: true,
+                    callback: () => {
+                        this.shieldGraphic.visible = !this.shieldGraphic.visible;
+                    }
+                });
             });
-        });
         
-        this.time.delayedCall(15000, () => {
-            this.shieldActive = false;
-            if (this.shieldBlinkTimer) {
-                this.shieldBlinkTimer.remove();
-                this.shieldBlinkTimer = null;
-            }
-            if (this.shieldGraphic) {
-                this.shieldGraphic.destroy();
-                this.shieldGraphic = null;
-            }
-        });
+            this.shieldExpireTimer = this.time.delayedCall(15000, () => {
+                this.shieldActive = false;
+                if (this.shieldBlinkTimer) {
+                    this.shieldBlinkTimer.remove();
+                    this.shieldBlinkTimer = null;
+                }
+                if (this.shieldGraphic) {
+                    this.shieldGraphic.destroy();
+                    this.shieldGraphic = null;
+                }
+                this.shieldExpireTimer = null;
+            })
         }
     }
 }

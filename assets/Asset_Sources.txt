@@ -8,5 +8,9 @@ music.wav - https://freesound.org/people/ShiftKun/sounds/435782/
 Sound license:
 https://creativecommons.org/licenses/by/4.0/
 
+powerUpCollected.wav - https://freesound.org/people/suntemple/sounds/253177/
+Sound license:
+https://creativecommons.org/publicdomain/zero/1.0/
+
 Sprites:
 https://ansimuz.itch.io - free sprites for games
