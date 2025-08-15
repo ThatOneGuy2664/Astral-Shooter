@@ -6,8 +6,8 @@ export class Load extends Phaser.Scene {
     preload() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
-        const progressBar = this.add.graphics();
         const progressBox = this.add.graphics();
+        const progressBar = this.add.graphics();
         progressBox.fillStyle(0x222222, 1);
         progressBox.fillRect(width / 4, height / 2 - 25, width / 2, 50);
         const loadText = this.add.text(this.scale.width / 2, this.scale.height / 2 - 60, 'Loading', {fontFamily: 'Helvetica', fontSize: '22px'});
@@ -60,4 +60,5 @@ export class Load extends Phaser.Scene {
             this.scene.start('GameScene');
         });
     }
+
 }
