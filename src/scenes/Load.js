@@ -8,7 +8,7 @@ export class Load extends Phaser.Scene {
         const height = this.cameras.main.height;
         const progressBar = this.add.graphics();
         const progressBox = this.add.graphics();
-        progressBox.fillStyle(0x222222, 0.8);
+        progressBox.fillStyle(0x222222, 1);
         progressBox.fillRect(width / 4, height / 2 - 25, width / 2, 50);
         const loadText = this.add.text(this.scale.width / 2, this.scale.height / 2 - 60, 'Loading', {fontFamily: 'Helvetica', fontSize: '22px'});
         let dotCount = 0;
@@ -24,6 +24,12 @@ export class Load extends Phaser.Scene {
             loop: true
         });
     
+        this.load.on('progress', (value) => {
+            progressBar.clear();
+            progressBar.fillStyle(0x07fa07, 1);
+            progressBar.fillRect(width / 4 + 10, height / 2 - 15, (width / 2 - 20) * value, 30);
+        });
+
         const fileText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 40, '', {
             fontFamily: 'Helvetica',
             fontSize: '18px'
