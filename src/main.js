@@ -1,4 +1,5 @@
 import { Start } from './scenes/Start.js';
+import { Load } from './scenes//Load.js';
 import { PauseMenu } from './scenes/PauseMenu.js';
 import { GameScene } from './scenes/GameScene.js';
 
@@ -11,6 +12,7 @@ const config = {
     pixelArt: false,
     scene: [
         Start,
+        Load,
         GameScene,
         PauseMenu
     ],

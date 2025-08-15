@@ -3,25 +3,6 @@ export class GameScene extends Phaser.Scene {
         super('GameScene');
     }
 
-    preload() {
-        this.load.image('background', 'assets/space.png');
-
-        // Load assets
-        this.load.spritesheet('ship', 'assets/spaceship.png', { frameWidth: 176, frameHeight: 96 });
-        this.load.spritesheet('enemy', 'assets/enemy.png', { frameWidth: 106, frameHeight: 77 });
-        this.load.spritesheet('explosion', 'assets/explosion.png', { frameWidth: 112, frameHeight: 128 });
-        this.load.spritesheet('laser', 'assets/laser.png', { frameWidth: 48, frameHeight: 32 });
-        this.load.spritesheet('laserImpact', 'assets/laserImpact.png', { frameWidth: 31, frameHeight: 32 });
-        this.load.spritesheet('enemy-fast', 'assets/enemy-fast.png', { frameWidth: 125, frameHeight: 76 });
-        this.load.spritesheet('enemyBullet', 'assets/enemyBullet.png', { frameWidth: 16, frameHeight: 16 });
-        this.load.spritesheet('power-up-bullet', 'assets/power-up-bullet.png', { frameWidth: 16, frameHeight: 16, endFrame: 1 });
-        this.load.spritesheet('power-up-shield', 'assets/power-up-shield.png', { frameWidth: 16, frameHeight: 16, endFrame: 1 });
-        this.load.audio('explosionSound', 'assets/explosionSound.wav');
-        this.load.audio('music1', 'assets/music.wav');
-        this.load.audio('laserSound', 'assets/laserShot.flac');
-        this.load.audio('powerUpSound', 'assets/powerUpCollected.wav');
-    }
-
     create() {
         // Create scrolling background
         this.background = this.add.tileSprite(640, 360, 1280, 720, 'background');
